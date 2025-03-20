@@ -12,8 +12,8 @@ char pass[] = SECRET_PASSWORD;
 WiFiClient client;
 
 char HOST_NAME[] = "maker.ifttt.com";
-String SUNLIGHT_HIT = "https://maker.ifttt.com/trigger/Sunlight_hit/with/key/drv-TCDXpcpkpWjtMUJLJQ";
-String SUNLIGHT_GONE = "https://maker.ifttt.com/trigger/Sunlight_gone/with/key/drv-TCDXpcpkpWjtMUJLJQ";
+String SUNLIGHT_HITS = "https://maker.ifttt.com/trigger/Sunlight_hits/with/key/drv-TCDXpcpkpWjtMUJLJQ";
+String SUNLIGHT_GOES = "https://maker.ifttt.com/trigger/Sunlight_goes/with/key/drv-TCDXpcpkpWjtMUJLJQ";
 String LIGHT_DURATION = "https://maker.ifttt.com/trigger/Sun_Duration/with/key/drv-TCDXpcpkpWjtMUJLJQ";
 String queryString = "?value1=";
 
@@ -21,7 +21,7 @@ float previousLux = 0;
 long hitDuration = 0;
 long startTime = 0;
 long pausedTime = 0;
-bool luxAbove220 = false;
+bool luxAbove100 = false;
 
 int hours = 0;
 int minutes = 0;
@@ -64,9 +64,10 @@ void loop() {
 
   if (client.connect(HOST_NAME, 80)) {  // Ensure connection before sending
 
+    // To send Sunlight hit signal
     if (currentLux - previousLux >= 150.00) {
-      Serial.println("Sunlight hit");
-      client.println("GET " + String(SUNLIGHT_HIT) + queryString + " HTTP/1.1");
+      Serial.println("Sunlight hits");
+      client.println("GET " + String(SUNLIGHT_HITS) + queryString + " HTTP/1.1");
       client.println("Host: " + String(HOST_NAME));
       client.println("Connection: close");
       client.println();  // End of the HTTP header
@@ -83,10 +84,11 @@ void loop() {
       client.stop();
       Serial.println();
       Serial.println("disconnected");
-        
+
+    // To send Sunlight gone signal  
     } else if (currentLux - previousLux <= -150.00) {
-      Serial.println("Sunlight gone");
-      client.println("GET " + String(SUNLIGHT_GONE) + queryString + " HTTP/1.1");
+      Serial.println("Sunlight goes");
+      client.println("GET " + String(SUNLIGHT_GOES) + queryString + " HTTP/1.1");
       client.println("Host: " + String(HOST_NAME));
       client.println("Connection: close");
       client.println();  // End of the HTTP header
@@ -105,11 +107,11 @@ void loop() {
       Serial.println("disconnected");
     }
 
-    if (currentLux >= 220.00){
-      if (!luxAbove220) {
+    if (currentLux >= 100.00){
+      if (!luxAbove100) {
       // First time lux exceeds 220, start the timer
       startTime = millis() - pausedTime;
-      luxAbove220 = true;  // Set the flag to indicate we're tracking
+      luxAbove100 = true;  // Set the flag to indicate we're tracking
       }
 
       hitDuration = (millis() - startTime) / 1000;
@@ -140,8 +142,8 @@ void loop() {
       Serial.println("disconnected");
         
     } else {
-      if (luxAbove220) {
-        luxAbove220 = false;
+      if (luxAbove100) {
+        luxAbove100 = false;
         pausedTime = millis() - startTime;
       }
     }
