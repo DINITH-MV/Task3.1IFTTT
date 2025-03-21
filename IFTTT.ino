@@ -17,11 +17,12 @@ String SUNLIGHT_GOES = "https://maker.ifttt.com/trigger/Sunlight_goes/with/key/d
 String LIGHT_DURATION = "https://maker.ifttt.com/trigger/Sun_Duration/with/key/drv-TCDXpcpkpWjtMUJLJQ";
 String queryString = "?value1=";
 
-float previousLux = 0;
 long hitDuration = 0;
 long startTime = 0;
 long pausedTime = 0;
 bool luxAbove100 = false;
+bool sunlightDetected = false;
+float currentLux = 0;
 
 int hours = 0;
 int minutes = 0;
@@ -55,59 +56,54 @@ void loop() {
 
   delay(1000);
 
-  float currentLux = lightMeter.readLightLevel();
+  currentLux = lightMeter.readLightLevel();
   Serial.print("Light level: ");
   Serial.print(currentLux);
   Serial.println(" lux");
 
-  
-
-  if (client.connect(HOST_NAME, 80)) {  // Ensure connection before sending
+  if (client.connect(HOST_NAME, 80)) {  
 
     // To send Sunlight hit signal
-    if (currentLux - previousLux >= 150.00) {
+    if (!sunlightDetected && currentLux >= 400) {
       Serial.println("Sunlight hits");
       client.println("GET " + String(SUNLIGHT_HITS) + queryString + " HTTP/1.1");
       client.println("Host: " + String(HOST_NAME));
       client.println("Connection: close");
       client.println();  // End of the HTTP header
 
-      while (client.connected()) {
-        if (client.available()) {
-          // read an incoming byte from the server and print it to serial monitor:
-          char c = client.read();
-          Serial.print(c);
-        }
-      }
+      readIFTTTResponse();
 
-      // the server's disconnected, stop the client:
-      client.stop();
-      Serial.println();
-      Serial.println("disconnected");
-
+      sunlightDetected = true;
+  
     // To send Sunlight gone signal  
-    } else if (currentLux - previousLux <= -150.00) {
+    } else if (sunlightDetected && currentLux <= 400) {
+
       Serial.println("Sunlight goes");
       client.println("GET " + String(SUNLIGHT_GOES) + queryString + " HTTP/1.1");
       client.println("Host: " + String(HOST_NAME));
       client.println("Connection: close");
       client.println();  // End of the HTTP header
 
-      while (client.connected()) {
-        if (client.available()) {
-          // read an incoming byte from the server and print it to serial monitor:
-          char c = client.read();
-          Serial.print(c);
-        }
-      }
+      readIFTTTResponse();
 
-      // the server's disconnected, stop the client:
-      client.stop();
-      Serial.println();
-      Serial.println("disconnected");
+      sunlightDetected = false;
     }
 
-    if (currentLux >= 100.00){
+    lightDurationTimer();
+      
+    delay(1000);
+
+  } else {
+    Serial.println("Failed to connect server!");
+  }
+
+  
+
+  delay(4000);
+}
+
+void lightDurationTimer() {
+    if (currentLux >= 400.00){
       if (!luxAbove100) {
       // First time lux exceeds 220, start the timer
       startTime = millis() - pausedTime;
@@ -128,32 +124,27 @@ void loop() {
       client.println("Connection: close");
       client.println();  // End of the HTTP header
 
-      while (client.connected()) {
-        if (client.available()) {
-          // read an incoming byte from the server and print it to serial monitor:
-          char c = client.read();
-          Serial.print(c);
-        }
-      }
-
-      // the server's disconnected, stop the client:
-      client.stop();
-      Serial.println();
-      Serial.println("disconnected");
-        
+    readIFTTTResponse();
+              
     } else {
       if (luxAbove100) {
         luxAbove100 = false;
         pausedTime = millis() - startTime;
       }
     }
+}
 
-    delay(1000);
+void readIFTTTResponse() {
+    while (client.connected()) {
+          if (client.available()) {
+            // read an incoming byte from the server and print it to serial monitor:
+            char c = client.read();
+            Serial.print(c);
+          }
+        }
 
-  } else {
-    Serial.println("Failed to connect server!");
-  }
-
-  previousLux = currentLux;
-  delay(4000);
+        // the server's disconnected, stop the client:
+        client.stop();
+        Serial.println();
+        Serial.println("disconnected");
 }
