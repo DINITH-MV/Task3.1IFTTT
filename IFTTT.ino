@@ -20,9 +20,10 @@ String queryString = "?value1=";
 long hitDuration = 0;
 long startTime = 0;
 long pausedTime = 0;
-bool luxAbove100 = false;
+bool luxAboveLimit = false;
 bool sunlightDetected = false;
 float currentLux = 0;
+float SunlightLuxValue = 400.00;
 
 int hours = 0;
 int minutes = 0;
@@ -64,7 +65,7 @@ void loop() {
   if (client.connect(HOST_NAME, 80)) {  
 
     // To send Sunlight hit signal
-    if (!sunlightDetected && currentLux >= 400) {
+    if (!sunlightDetected && currentLux >= SunlightLuxValue) {
       Serial.println("Sunlight hits");
       client.println("GET " + String(SUNLIGHT_HITS) + queryString + " HTTP/1.1");
       client.println("Host: " + String(HOST_NAME));
@@ -76,7 +77,7 @@ void loop() {
       sunlightDetected = true;
   
     // To send Sunlight gone signal  
-    } else if (sunlightDetected && currentLux <= 400) {
+    } else if (sunlightDetected && currentLux <= SunlightLuxValue) {
 
       Serial.println("Sunlight goes");
       client.println("GET " + String(SUNLIGHT_GOES) + queryString + " HTTP/1.1");
@@ -103,11 +104,11 @@ void loop() {
 }
 
 void lightDurationTimer() {
-    if (currentLux >= 400.00){
-      if (!luxAbove100) {
-      // First time lux exceeds 220, start the timer
+    if (currentLux >= SunlightLuxValue){
+      if (!luxAboveLimit) {
+     
       startTime = millis() - pausedTime;
-      luxAbove100 = true;  // Set the flag to indicate we're tracking
+      luxAboveLimit = true;  // Set the flag to indicate we're tracking
       }
 
       hitDuration = (millis() - startTime) / 1000;
@@ -118,6 +119,7 @@ void lightDurationTimer() {
 
       timeString = String(hours) + " hours, " + String(minutes) + " mins, " + String(seconds) + " seconds";
       String ConcatenatedString = queryString + timeString;
+      Serial.println(String(hours) + " " + String(minutes) + " " + String(seconds));
     
       client.println("GET " + String(LIGHT_DURATION) + "?value1=" + String(hours) + "&value2="+ String(minutes) + "&value3=" + String(seconds) + " HTTP/1.1");
       client.println("Host: " + String(HOST_NAME));
@@ -127,8 +129,8 @@ void lightDurationTimer() {
     readIFTTTResponse();
               
     } else {
-      if (luxAbove100) {
-        luxAbove100 = false;
+      if (luxAboveLimit) {
+        luxAboveLimit = false;
         pausedTime = millis() - startTime;
       }
     }
